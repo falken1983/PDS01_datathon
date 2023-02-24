@@ -1,7 +1,7 @@
 """
-Optuna example that optimizes a classifier configuration for cancer dataset using LightGBM.
+Optuna template that optimizes a classifier configuration for telcom churn using LightGBM.
 
-In this example, we optimize the validation accuracy of cancer detection using LightGBM.
+In this example, we optimize the validation accuracy of telcom churn using LightGBM.
 We optimize both the choice of booster model and their hyperparameters.
 
 """
@@ -20,8 +20,7 @@ import sklearn.metrics
 # (https://optuna.readthedocs.io/en/stable/faq.html#objective-func-additional-args).
 
 def load_cleaned_telcom_churn(path="./cleaned_telcom_churn_construction.csv"):
-    data_raw = pd.read_csv(path)
-    print(f"{path} succesfully loaded\n")
+    data_raw = pd.read_csv(path)    
     X = data_raw.iloc[:,:-1]
     y = data_raw[data_raw.columns.tolist()[-1]]
     return X,y
@@ -81,6 +80,7 @@ def objective(trial):
 if __name__ == "__main__":
     study = optuna.create_study(direction="maximize")
     data, target = load_cleaned_telcom_churn("../kaggle_data/cleaned_train.csv")
+    print(f"{path} succesfully loaded and parsed to Pandas objects\n")
 
     study.optimize(objective, n_trials=500)
 
