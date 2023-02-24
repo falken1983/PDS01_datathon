@@ -1,2 +1,2 @@
 # PDS01_datathon
-DS Bootcamp Program Final Grade (Datathon)
+Data Science Training/Preparation Competition for Final Grade
