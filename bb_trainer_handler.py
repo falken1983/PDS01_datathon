@@ -7,13 +7,18 @@ from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.metrics import accuracy_score
 
 class bb_dataset():
-    def _load_data(self, sklearn_load_ds):
+    def _load_data(self, sklearn_load_ds, simulated=True):
         data = sklearn_load_ds
         X = data["data"]
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, data["target"], test_size=0.3, random_state=42)       
+        if simulated:
+            self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, data["target"], test_size=0.3, random_state=42)       
+        else:            
+            self.X_train, self.y_train = data["data"], data["target"] # <- Train Data
+            self.X_test = data["test"]                 # <- Real Test Data
+
         
-    def __init__(self, sklearn_load_ds):
-        self._load_data(sklearn_load_ds)
+    def __init__(self, sklearn_load_ds, sim=True):
+        self._load_data(sklearn_load_ds, sim)
     
     def scale_transform(self, transformer, f_names):
         feature_names = f_names
