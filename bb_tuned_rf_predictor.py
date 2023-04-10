@@ -21,16 +21,25 @@ import pickle
 import yaml
 import sklearn.ensemble
 
+from scipy.stats import spearmanr
+from sklearn.metrics import accuracy_score, roc_auc_score, classification_report, confusion_matrix
+
 def best_estimator_loader():
     with open("./best_model.pkl","rb") as fmodel:
         return pickle.load(fmodel)
 
-def best_estimator_predictions(features):
+def best_estimator_predictions(train_x, train_y, test_x):
+    # Load Best Estimator
     best_estimator = best_estimator_loader()
+    
+    # Refitting (with all Labelled Data)
+    best_estimator.fit(train_x, train_y)
+    
+    # Predicting Labels (with unknown or simulated test data) and improving acc/AUC with trained treshold.
     with open("./best_model_features.yaml","r") as f:
-        specs = yaml.load(f)
+        specs = yaml.safe_load(f)
     th_proba = specs["ROC"]
-    predictions = best_estimator.predict_proba(features)[:,1]
+    predictions = best_estimator.predict_proba(test_x)[:,1]
     return np.where(predictions>th_proba,1,0)
 
 def main():
@@ -39,7 +48,7 @@ def main():
     if len(args)<1:
         print("MyBlueberry predictor needs some arguments")
         print("--simulate: if want to simulate behaviour with train set")
-        print("--filename filename: if predictions for real test set are needed")
+        print("--filename filename: if predictions for real test set are needed")        
     else:
         simulate = False
         train_data = pd.read_excel("./datamecum_data/entrenamiento.xlsx")
@@ -51,7 +60,7 @@ def main():
         
         elif args[0]=="--filename":                        
             test_data = pd.read_excel(str(args[1]))
-            print(r"### Real Test Data Has Been Loaded ###")
+            print("### Real Test Data Has Been Loaded ###")
                 
         # Data Preparation
         data_dict = {}
@@ -60,11 +69,30 @@ def main():
         if not simulate:
             data_dict["test"] = test_data
         
+        # (train_x, train_y) for refitting purposes
+        train_x = bb_dataset(data_dict, simulate).scale_transform(ct,features_reduced_set).clustering().X_train
+        train_y = bb_dataset(data_dict, simulate).scale_transform(ct,features_reduced_set).clustering().y_train
+        
+        # Real world data tranches for evaluating purposes
         test_x = bb_dataset(data_dict, simulate).scale_transform(ct,features_reduced_set).clustering().X_test
         if simulate:
             test_y = bb_dataset(data_dict, simulate).scale_transform(ct,features_reduced_set).clustering().y_test
         
-        print(test_x.shape, test_y.shape)        
+        # Predictions
+        predictions = best_estimator_predictions(train_x, train_y, test_x)
+
+        df_predict = pd.DataFrame(
+            data={
+            "observed": test_y.map({"A": 0, "B": 1}),
+            "predicted": predictions
+            }
+        )
+
+        # df_predict.apply({"A": 0, "B": 1})
+        df_predict.to_csv("./predictions_test.csv", index=False)
+        # AUC, _ = spearmanr(df_predict["observed"], df_predict["predicted"])
+        #  print(f"Optimized AUC: {100*AUC:.2f}%")      
+        print(classification_report(df_predict["observed"], df_predict["predicted"]))
     return
 
 if __name__ == "__main__":
