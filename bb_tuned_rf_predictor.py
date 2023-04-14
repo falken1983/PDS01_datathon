@@ -39,8 +39,8 @@ def best_estimator_predictions(train_x, train_y, test_x):
     with open("./best_model_features.yaml","r") as f:
         specs = yaml.safe_load(f)
     th_proba = specs["ROC"]
-    predictions = best_estimator.predict_proba(test_x)[:,1]
-    return np.where(predictions>th_proba,1,0)
+    label_scores = best_estimator.predict_proba(test_x)[:,1]
+    return label_scores, np.where(label_scores>th_proba,1,0)
 
 def main():
     args = sys.argv[1:]
@@ -61,7 +61,10 @@ def main():
         elif args[0]=="--filename":                        
             test_data = pd.read_excel(str(args[1]))
             print("### Real Test Data Has Been Loaded ###")
-                
+            print(f"### Number Of Samples: {test_data.shape[0]}")
+            features = test_data.iloc[:,:-1].columns.tolist()
+            print(f"### Number Of Features: {len(features)}")
+            print(f"### Features: {features}")
         # Data Preparation
         data_dict = {}
         data_dict["data"] = train_data.iloc[:,:-1]
@@ -75,24 +78,28 @@ def main():
         
         # Real world data tranches for evaluating purposes
         test_x = bb_dataset(data_dict, simulate).scale_transform(ct,features_reduced_set).clustering().X_test
+        
         if simulate:
             test_y = bb_dataset(data_dict, simulate).scale_transform(ct,features_reduced_set).clustering().y_test
         
         # Predictions
-        predictions = best_estimator_predictions(train_x, train_y, test_x)
+        scores, _ = best_estimator_predictions(train_x, train_y, test_x)        
 
-        df_predict = pd.DataFrame(
-            data={
-            "observed": test_y.map({"A": 0, "B": 1}),
-            "predicted": predictions
-            }
-        )
+        if simulate:
+            df_predict = pd.DataFrame(data={
+                                    "observed": test_y.map({"A": 0, "B": 1}),
+                                    "proba_class_1": scores
+                                    }
+            )
+            print(classification_report(df_predict["observed"], df_predict["predicted"]))
+        else:
+            df_predict = pd.DataFrame(data={"proba_class_1": scores})            
+        
+        test_x.to_csv("./features_transformed.csv", index=False)
+        test_x.to_excel("./features_transformed.xlsx", index=False)
 
-        # df_predict.apply({"A": 0, "B": 1})
-        df_predict.to_csv("./predictions_test.csv", index=False)
-        # AUC, _ = spearmanr(df_predict["observed"], df_predict["predicted"])
-        #  print(f"Optimized AUC: {100*AUC:.2f}%")      
-        print(classification_report(df_predict["observed"], df_predict["predicted"]))
+        df_predict.to_csv("./predictions_test.csv", index=False)        
+        df_predict.to_excel("./predictions_test.xlsx", index=False)
     return
 
 if __name__ == "__main__":
@@ -111,13 +118,5 @@ if __name__ == "__main__":
     )
 
     main()
-    # Substitute with Real Test Competition Data
-    # data = pd.read_excel("./datamecum_data/entrenamiento.xlsx")
-    """ data = pd.DataFrame()
-
-    data_dict["data"] = data """
-
-    # Unknown a priori on Test Competition Set
-    # data_dict["target"] = data.iloc[:,-1].map({"A": 0, "B": 1})
 
     
